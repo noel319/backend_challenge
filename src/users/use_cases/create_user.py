@@ -1,5 +1,5 @@
 from typing import Any
-
+from core.transactional_outbox import Outbox
 import structlog
 
 from core.base_model import Model
@@ -48,6 +48,13 @@ class CreateUser(UseCase):
         if created:
             logger.info('user has been created')
             self._log(user)
+            # Save the event in the outbox
+            outbox = Outbox.objects.create(
+                event_type='user_created',
+                event_context={'email': user.email, 'first_name': user.first_name, 'last_name': user.last_name},
+                metadata_version=1,  # Increment as needed
+                environment='production',  # Use appropriate environment
+            )
             return CreateUserResponse(result=user)
 
         logger.error('unable to create a new user')
