@@ -3,8 +3,8 @@ CREATE TABLE IF NOT EXISTS event_log
     `event_type` String,
     `event_date_time` DateTime64(6),
     `environment` String,
-    `event_context` String,
-    `metadata_version` Int32 DEFAULT 1,
+    `event_context` JSON,
+    `metadata_version` UInt64 DEFAULT 1,
 )
 ENGINE = MergeTree()
 PARTITION BY toYYYYMM(event_date_time)

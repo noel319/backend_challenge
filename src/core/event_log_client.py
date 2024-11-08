@@ -2,7 +2,7 @@ import re
 from collections.abc import Generator
 from contextlib import contextmanager
 from typing import Any
-
+from users.models import Outbox
 import clickhouse_connect
 import structlog
 from clickhouse_connect.driver.exceptions import DatabaseError
@@ -82,3 +82,11 @@ class EventLogClient:
         result = re.sub('(.)([A-Z][a-z]+)', r'\1_\2', event_name)
         return re.sub('([a-z0-9])([A-Z])', r'\1_\2', result).lower()
 
+    def log_event(self, event_type, event_context, metadata_version=1, environment="production"):
+        # Creates an outbox entry instead of directly logging to ClickHouse
+        Outbox.objects.create(
+            event_type=event_type,
+            event_context=event_context,
+            metadata_version=metadata_version,
+            environment=environment
+        )
