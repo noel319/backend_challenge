@@ -1,7 +1,6 @@
 from typing import Any
-from core.transactional_outbox import Outbox
 import structlog
-
+from core.transactional_outbox import TransactionalOutbox
 from core.base_model import Model
 from core.event_log_client import EventLogClient
 from core.use_case import UseCase, UseCaseRequest, UseCaseResponse
@@ -28,6 +27,9 @@ class CreateUserResponse(UseCaseResponse):
 
 
 class CreateUser(UseCase):
+    def __init__(self, event_client=EventLogClient()):
+        self.event_client = event_client
+
     def _get_context_vars(self, request: UseCaseRequest) -> dict[str, Any]:
         return {
             'email': request.email,
@@ -47,28 +49,21 @@ class CreateUser(UseCase):
 
         if created:
             logger.info('user has been created')
-            self._log(user)
-            # Save the event in the outbox
-            outbox = Outbox.objects.create(
-                event_type='user_created',
-                event_context={'email': user.email, 'first_name': user.first_name, 'last_name': user.last_name},
-                metadata_version=1,  # Increment as needed
-                environment='production',  # Use appropriate environment
-            )
+            self._log(user)            
             return CreateUserResponse(result=user)
 
         logger.error('unable to create a new user')
         return CreateUserResponse(error='User with this email already exists')
 
     def _log(self, user: User) -> None:
-        with EventLogClient.init() as client:
-            client.insert(
-                data=[
-                    UserCreated(
-                        email=user.email,
-                        first_name=user.first_name,
-                        last_name=user.last_name,
-                    ),
-                ],
-            )
+        TransactionalOutbox.save_event(
+            event_type='user_created',
+            event_context={
+                'email': user.email,
+                'first_name': user.first_name,
+                'last_name': user.last_name
+            },
+            metadata_version=1,
+            environment='production'  # Use the appropriate environment
+        )
 
