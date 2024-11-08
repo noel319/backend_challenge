@@ -7,7 +7,7 @@ from clickhouse_connect.driver import Client
 from django.conf import settings
 
 from users.use_cases import CreateUser, CreateUserRequest, UserCreated
-
+from users.models import Outbox, User
 pytestmark = [pytest.mark.django_db]
 
 
@@ -66,3 +66,11 @@ def test_event_log_entry_published(
             1,
         ),
     ]
+
+@pytest.mark.django_db
+def test_create_user_with_outbox():
+    use_case = CreateUser()
+    user = use_case.execute(email="testuser@example.com", first_name="Test", last_name="User")
+    
+    assert User.objects.filter(email="testuser@example.com").exists()
+    assert Outbox.objects.filter(event_type="user_created", processed=False).count() == 1
