@@ -1,6 +1,6 @@
 from typing import Any
 import structlog
-from core.transactional_outbox import TransactionalOutbox
+from .models import EventLogOutbox
 from core.base_model import Model
 from core.event_log_client import EventLogClient
 from core.use_case import UseCase, UseCaseRequest, UseCaseResponse
@@ -56,14 +56,14 @@ class CreateUser(UseCase):
         return CreateUserResponse(error='User with this email already exists')
 
     def _log(self, user: User) -> None:
-        TransactionalOutbox.save_event(
-            event_type='user_created',
-            event_context={
-                'email': user.email,
-                'first_name': user.first_name,
-                'last_name': user.last_name
-            },
-            metadata_version=1,
-            environment='production'  # Use the appropriate environment
-        )
+        with EventLogClient.init() as client:
+            client.insert(
+                data=[
+                    UserCreated(
+                        email=user.email,
+                        first_name=user.first_name,
+                        last_name=user.last_name,
+                    ),
+                ],
+            )
 

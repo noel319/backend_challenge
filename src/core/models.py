@@ -21,3 +21,14 @@ class TimeStampedModel(models.Model):
             update_fields.add('updated_at')
 
         super().save(force_insert, force_update, using, update_fields)
+
+class EventLogOutbox(models.Model):
+    event_type = models.CharField(max_length=255)
+    event_date_time = models.DateTimeField(default=timezone.now)
+    environment = models.CharField(max_length=255)
+    event_context = models.JSONField()
+    metadata_version = models.IntegerField(default=1)
+    processed = models.BooleanField(default=False)
+
+    class Meta:
+        db_table = 'event_log_outbox'
