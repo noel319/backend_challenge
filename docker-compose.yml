@@ -7,6 +7,7 @@ services:
     depends_on:
       - db
       - clickhouse
+      - redis
     command: [ "../docker/wait-for-it.sh", "db:5432", "--", "python", "manage.py", "runserver", "0.0.0.0:8000" ]
     ports:
       - 8000:8000
@@ -14,6 +15,13 @@ services:
       - app_static_files:/srv/app/static:rw
       - app_media_files:/srv/app/media:rw
       - .:/srv/app
+    environment:
+      DATABASE_URL: postgres://test_pg_user:123456@db:5432/test_database
+      CELERY_BROKER_URL: redis://redis:6379/0
+      CLICKHOUSE_HOST: clickhouse
+      CLICKHOUSE_PORT: 8123
+      SENTRY_DSN: ${SENTRY_DSN}
+      DJANGO_SETTINGS_MODULE: core.settings
 
   db:
     tty: true
@@ -44,8 +52,43 @@ services:
     volumes:
       - ./docker/clickhouse/init.sql:/docker-entrypoint-initdb.d/init.sql
 
+  celery_worker:
+    build: .
+    restart: always
+    depends_on:
+      - db
+      - redis
+      - clickhouse
+    command: celery -A core worker -l info
+    volumes:
+      - .:/srv/app
+    environment:
+      DATABASE_URL: postgres://test_pg_user:123456@db:5432/test_database
+      CELERY_BROKER_URL: redis://redis:6379/0
+      CLICKHOUSE_HOST: clickhouse
+      CLICKHOUSE_PORT: 8123
+      SENTRY_DSN: ${SENTRY_DSN}
+      DJANGO_SETTINGS_MODULE: core.settings
+
+  celery_beat:
+    build: .
+    restart: always
+    depends_on:
+      - db
+      - redis
+      - clickhouse
+    command: celery -A core beat -l info
+    volumes:
+      - .:/srv/app
+    environment:
+      DATABASE_URL: postgres://test_pg_user:123456@db:5432/test_database
+      CELERY_BROKER_URL: redis://redis:6379/0
+      CLICKHOUSE_HOST: clickhouse
+      CLICKHOUSE_PORT: 8123
+      SENTRY_DSN: ${SENTRY_DSN}
+      DJANGO_SETTINGS_MODULE: core.settings
 
 volumes:
   dev-db-data: {}
-  app_media_files: { }
-  app_static_files: { }
+  app_media_files: {}
+  app_static_files: {}

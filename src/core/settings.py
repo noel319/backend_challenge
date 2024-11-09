@@ -1,6 +1,8 @@
 import os
 from pathlib import Path
-
+import sentry_sdk
+from sentry_sdk.integrations.django import DjangoIntegration
+from sentry_sdk.integrations.celery import CeleryIntegration
 import environ
 import sentry_sdk
 import structlog
@@ -190,3 +192,9 @@ if SENTRY_SETTINGS.get("dsn") and not DEBUG:
         ],
         default_integrations=False,
     )
+sentry_sdk.init(
+    dsn=os.getenv("SENTRY_DSN"),
+    integrations=[DjangoIntegration(), CeleryIntegration()],
+    traces_sample_rate=1.0,  # Adjust to control tracing
+    send_default_pii=True
+)
